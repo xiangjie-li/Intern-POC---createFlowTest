@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="65f3af51-9256-4a13-b4cd-341979fa2fe5" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="da65119a-4587-4e4d-a89b-8d0403df2144" basePath="//s/SiteGenesis/dw/shop/v20_4" >
+		<http:request-connection protocol="HTTPS" host="staging-functional37-qa.demandware.net" port="443"/>
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="955ac1ad-c266-4fe9-bd9f-e52a6a540221" basePath="//s/SiteGenesis/dw/shop/v20_4/products" >
+		<http:request-connection protocol="HTTPS" host="staging-functional37-qa.demandware.net" port="443" />
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration2" doc:name="HTTP Request configuration" doc:id="16a17bf6-9986-4168-a3a1-8f8ede7bc866" >
+		<http:request-connection protocol="HTTPS" host="https://www.googleapis.com" port="443" />
+	</http:request-config>
+	<flow name="consumer_flow_2" doc:id="5d66661a-3168-4c46-ba85-0fb1b8e1040c" >
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="9132008b-e488-471d-9488-4bee524c1f13" />
+		<logger level="INFO" doc:name="Logger" doc:id="e6fd2dfe-648a-47c5-b520-b09eb7962f19" />
+	</flow>
+	<flow name="consumer_flow_1" doc:id="2e3d3520-409b-4776-b0fe-091a9d86cc44" >
+		<ee:transform doc:name="CDM to Google Product" doc:id="93cea0a2-da77-4e8e-ba89-4d7787720637" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"entries": payload.Product map (product, index) -> {
+		"batchId": index,
+		"merchantId": vars.merchantId,
+		"method": "insert",
+		"product": {
+			"id": product.ProductSKU,
+			"offerId": product.ProductSKU,
+			"title": product.Title,
+			"contentLanguage": "en",
+			"targetCountry": "US",
+			"channel": "online",
+			"price": {
+				"value": product.Price.UnitListPrice default 100,
+				"currency": product.Price.Currency default 'USD'
+			},
+			(if ( product.ImageGroup != null ) ("imageLink": product.ImageGroup[0].ImageURL)
+                else "imageLink": "www.example.jpg"),
+			(if ( product.ImageGroup != null ) ("additionalImageLinks": product.ImageGroup[1 to -1] map (image, index) -> image.ImageURL)
+            	else {
+			}),
+			"description": product.Description,
+			"brand": product.Brand,
+			"availability": if ( product.IsOrderable == true ) "In Stock" else "Out of Stock"
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="23662470-0f8e-4794-a09e-b458763d512f" />
+	</flow>
+	<flow name="producer_flow_1" doc:id="e0eab66f-62e5-4ea8-b108-ebbc2e2d26d4" initialState="started">
+		<http:request method="POST" doc:name="RequestShopperJWT" doc:id="dd228f3a-d82f-48ae-9959-f5eb3ca16c6d" config-ref="HTTP_Request_configuration" path="/customers/auth">
+			<http:body ><![CDATA[{
+	"type": "guest"
+}]]></http:body>
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"_sfdc_mercury" : "1"
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"client_id" : "6c957560-464f-4a98-ad0f-5e9662527e27"
+}]]]></http:query-params>
+		</http:request>
+		<http:request method="GET" doc:name="Request" doc:id="183ab826-0190-4c76-a138-5f3aa16db2c9" path="/(mitsubishi-lt-40148,mitsubishi-lt-46149)" config-ref="HTTP_Request_configuration1">
+			<http:headers ><![CDATA[#[{
+	"Authorization": attributes.headers.Authorization
+}]]]></http:headers>
+		</http:request>
+		<ee:transform doc:name="OCAPI to CDM" doc:id="e1be74df-2a4e-4b53-9290-72bb9d681d3a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+fun getPrice(payload) = {
+	Currency: payload.currency,
+	UnitListPrice: payload.price
+}
+
+
+---
+{
+	Product: payload.data map (item, index) -> {
+		"ProductSKU": item.id,
+	    ("ProductLinks":item.product_links) if (item.product_links?),
+        "Brand": item.brand,
+        "PrimaryProductCategory":item.primary_category_id,
+        "Title": item.page_title,
+        "Name": item.name,
+        "Price": getPrice(item),
+        "Description": item.page_description,
+        "ImageGroup": item.image_groups map (subGroup, index) -> {
+        	(subGroup.images map (image, index) -> {
+        		"ImageURL": image.link,
+                "ImageTitle": image.title,
+                "ImageViewType": subGroup.view_type,
+                "ImageAlternateText": image.alt 
+        	})
+        },
+        "IsPreOrderable": item.inventory.preorderable,
+        "IsOrderable": item.inventory.orderable
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="connect" doc:id="59d0b3c0-a18b-45f5-accd-15d1f8eac6fd" initialState="stopped">
+		<scheduler doc:name="Scheduler" doc:id="cff806d2-1997-4327-b486-a66696d56093" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="5" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<os:retrieve doc:name="Retrieve" doc:id="f252f675-12b9-43f1-9940-ff7f6885c0a8" key="producer&amp;consumers"/>
+		<set-variable value="#[payload]" doc:name="Set producer&amp;consumers" doc:id="2958c3f4-87e8-4ea1-8b0a-a25676c57943" variableName="producer&amp;consumers" />
+		<flow-ref doc:name="Producer Flow Reference" doc:id="de509366-1c4e-4c7f-93c8-966326c11e5e" name='#[vars."producer&amp;consumers".producer]' />
+		<set-payload value="#[payload]" doc:name="Set producerData" doc:id="bda1ad9f-8678-4eb6-9e4e-a39b2fcefe87" />
+		<foreach doc:name="For Each" doc:id="ba96a52b-0c6e-4ac1-afb7-5deeae603168" collection='#[vars."producer&amp;consumers".consumers]'>
+			<set-variable value="#[payload]" doc:name="Set consumer" doc:id="b3ea2d39-761b-42c5-a11f-c02de61ffb8f" variableName="consumer"/>
+			<set-payload value="#[vars.producerData]" doc:name="Set Payload" doc:id="dd8245d9-7b75-49f4-bc46-1a960851a6c2" />
+			<flow-ref doc:name="Consumer Flow Reference" doc:id="3ca1a495-fe0b-4745-9484-3c2863b2308e" name="#[vars.consumer]" />
+		</foreach>
+	</flow>
+	<flow name="createflowtestFlow1" doc:id="a9821d46-fb76-40a2-9ed9-a1b14b39110d" >
+		<http:listener doc:name="Listener" doc:id="6023580d-be4b-425c-ab8e-3d96408447d3" config-ref="HTTP_Listener_config" path="/connect"/>
+		<ee:transform doc:name="Transform Message" doc:id="93da98c3-3708-475e-a5d4-fecf643eb91a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+
+---
+{
+	"producer": attributes.headers.producer,
+	"consumers": attributes.headers.consumers splitBy(',')
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<os:store doc:name="Store" doc:id="b67d9062-b2c2-4fcc-a046-6f67e0c0abb2" key="producer&amp;consumers"/>
+		<scripting:execute doc:name="Execute" doc:id="c407df50-e064-4a26-b56b-644918516982" engine="groovy">
+		    <scripting:code><![CDATA[
+		        flow = registry.lookupByName("connect").get();
+                if (flow.isStarted())
+                    flow.stop()
+                else 
+                    flow.start()
+                
+		    ]]></scripting:code>
+		</scripting:execute>
+	</flow>
+	<flow name="createflowtestFlow" doc:id="33753594-ff8f-4915-839c-3d6b2d19d16f" >
+		<http:listener doc:name="Listener" doc:id="d0e56990-b026-4d22-b6cd-72341f99a3c8" config-ref="HTTP_Listener_config" path="/startflow"/>
+		<java:new doc:name="New" doc:id="43d319ac-0e01-456c-8dd7-4d82d91f4e22" class="Start" constructor="Start()" target="Start"/>
+		<java:invoke doc:name="Invoke" doc:id="8a018926-82ff-4c06-83d3-4c0ba59a5095" instance="#[vars.Start]" class="Start" method="createFlow()"/>
+	</flow>
+</mule>
