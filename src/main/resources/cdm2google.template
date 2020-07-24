@@ -1,0 +1,30 @@
+%dw 2.0
+output application/json
+---
+{
+	"entries": payload.Product map (product, index) -> {
+		"batchId": index,
+		"merchantId": 236165189,
+		"method": "insert",
+		"product": {
+			"id": product.#[output text/plain --- payload.id],
+			"offerId": product.#[output text/plain --- payload.offerId],
+			"title": product.#[output text/plain --- payload.title],
+			"contentLanguage": "en",
+			"targetCountry": "US",
+			"channel": "online",
+			"price": {
+				"value": product.#[output text/plain --- payload."price.value"] default 100,
+				"currency": product.#[output text/plain --- payload."price.currency"] default 'USD'
+			},
+			(if ( product.ImageGroup != null ) ("imageLink": product.ImageGroup[0].ImageURL)
+                else "imageLink": "www.example.jpg"),
+			(if ( product.ImageGroup != null ) ("additionalImageLinks": product.ImageGroup[1 to -1] map (image, index) -> image.ImageURL)
+            	else {
+			}),
+			"description": product.#[output text/plain --- payload."description"],
+			"brand": product.#[output text/plain --- payload."brand"],
+			"availability": if ( product.#[output text/plain --- payload."availability"] == true ) "In Stock" else "Out of Stock"
+		}
+	}
+}

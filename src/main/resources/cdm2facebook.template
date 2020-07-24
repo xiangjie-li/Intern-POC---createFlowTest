@@ -1,0 +1,24 @@
+%dw 2.0
+output application/json
+---
+{
+	// access token already acquired from oath flow
+	"item_type": "PRODUCT_ITEM",
+	"requests": payload.Product map (product, index) -> {
+	    "method": "CREATE",
+	    "retailer_id": product.#[output text/plain --- payload.retailer_id],
+        "data": {
+            "availability": if ( product.#[output text/plain --- payload.availability] == true ) "in stock" else "out of stock",
+            "brand": product.#[output text/plain --- payload.brand],
+            "category": "t-shirts",
+            "description": product.#[output text/plain --- payload.description],
+            (if ( product.ImageGroup != null ) ("image_url": product.ImageGroup[0].ImageURL)
+                else "image_url": "www.example.jpg"),
+            "name": product.#[output text/plain --- payload.name],
+            "price": (product.#[output text/plain --- payload.price] * 100 default 100) as String,
+            "currency": product.#[output text/plain --- payload.currency] default 'USD',
+            "condition": "new",
+            "url":"http://www.images.example.com/t-shirts/1.png"
+        }
+	}
+}

@@ -1,9 +1,22 @@
 
 import javax.inject.Inject;
 
-import org.mule.api.MuleException;
-import org.mule.construct.Flow;
+import java.util.Collections;
+
+import javax.inject.Inject;
+
 import org.mule.runtime.api.artifact.Registry;
+import org.mule.runtime.api.exception.MuleException;
+import org.mule.runtime.api.lifecycle.Initialisable;
+import org.mule.runtime.api.message.Message;
+import org.mule.runtime.core.api.construct.Flow;
+import org.mule.runtime.core.api.context.notification.MuleContextNotification;
+import org.mule.runtime.core.api.context.notification.MuleContextNotificationListener;
+import org.mule.runtime.core.api.event.CoreEvent;
+import org.mule.runtime.core.api.event.EventContextFactory;
+import org.mule.runtime.dsl.api.component.config.DefaultComponentLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class Start {
@@ -11,11 +24,11 @@ public class Start {
 	@Inject
 	Registry muleRegistry;
 	
-	public Start() {
-		
+	public Start(){
 	}
 	
-	public void createFlow() throws MuleException {
+	
+	public void startFlow() throws MuleException {
 		// add flow by creating new muleContext
 //	    MuleContextFactory muleContextFactory = new DefaultMuleContextFactory();				
 //		System.out.println("create new mule context factory");

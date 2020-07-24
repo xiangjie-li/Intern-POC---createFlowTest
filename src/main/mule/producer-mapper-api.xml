@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd">
+	<flow name="POST_producer_mapper_config_producerName" doc:id="b70b3602-99ca-405b-a9bd-8cbd148b19f7" >
+		<http:listener doc:name="/producer_mapper/config/{producerName}" doc:id="88fadd20-a415-4bb1-b36e-32d34a379896" config-ref="HTTP_Listener_config" path="/producer_mapper/config/{producerName}" allowedMethods="POST" />
+		<set-variable value="#[attributes.uriParams.producerName]" doc:name="Set producer as Variable" doc:id="34fa31f4-b024-4dba-a34d-8d7190e54f36" variableName="producer" />
+		<ee:transform doc:name="Transform Form Data to JSON Document" doc:id="48e9fb19-82b9-4c54-b0c6-e315d4f30c0f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+fun getJson(payload) = {
+	mapping: payload.parts mapObject (value,key) -> {
+		(if (!(value.headers."Content-Disposition".name == "configName")) ((key) : value.content) else {})
+	}
+}
+
+---
+
+{
+	"userId": "jack",
+	"producerName": vars.producer,
+	"configName": payload.parts.configName.content,
+	"config": (getJson(payload)).mapping
+}
+
+
+//{
+//	"ProductSKU": payload.parts.ProductSKU.content,
+//	"ProductLinks": payload.parts.ProductLinks.content,
+//	"Brand": payload.parts.Brand.content,
+//	"PrimaryProductCategory": payload.parts.PrimaryProductCategory.content,
+//	"Title": payload.parts.Title.content,
+//	"Name": payload.parts.Name.content,
+//	"Currency": payload.parts.Currency.content,
+//	"UnitListPrice": payload.parts.UnitListPrice.content,
+//	"Description": payload.parts.Description.content,
+//	"ImageGroup": payload.parts.ImageGroup.content,
+//	"Images": payload.parts.Images.content,
+//	"ImageURL": payload.parts.ImageURL.content,
+//	"ImageTitle": payload.parts.ImageTitle.content,
+//	"ImageViewType": payload.parts.ImageViewType.content,
+//	"ImageAlternateText": payload.parts.ImageAlternateText.content,
+//	"IsPreOrderable": payload.parts.IsPreOrderable.content,
+//	"IsOrderable": payload.parts.IsOrderable.content
+//}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<mongo:find-one-and-update-document collectionName="producerMapper" doc:name="Find one and update document" doc:id="929ad642-8ac7-4a1c-aae5-09da1a9c573b" config-ref="MongoDB_Config" upsert="true">
+			<mongo:find-query><![CDATA[#[{  
+	userId: payload.userId,
+	producerName: payload.producerName,
+	configName: payload.configName
+}]]]></mongo:find-query>
+			<mongo:content-to-update><![CDATA[#[payload]]]></mongo:content-to-update>
+		</mongo:find-one-and-update-document>
+	</flow>
+	<flow name="GET_producer_mapper_config_producerName_configName" doc:id="72689907-3c53-40dd-b179-ff7502945253" >
+		<http:listener doc:name="/producer_mapper/config/{producerName}/{configName}" doc:id="2d44b42a-4105-4ae7-9b4d-5fd9b08a00d0" config-ref="HTTP_Listener_config" path="/producer_mapper/config/{producerName}/{configName}" allowedMethods="GET" />
+		<ee:transform doc:name="Transform Query Items to JSON" doc:id="1e7f87b8-2040-4adc-8db3-f4ac37dcaa24" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"producerName": attributes.uriParams.producerName,
+	"configName": attributes.uriParams.configName
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<mongo:find-one-document doc:name="Find one document" doc:id="f05023da-c3cc-44be-bde4-4106d1aa2d7a" config-ref="MongoDB_Config" collectionName="producerMapper">
+			<mongo:find-query><![CDATA[#[{
+	producerName: payload.producerName,
+	configName: payload.configName,
+	userId: "jack"
+}]]]></mongo:find-query>
+		</mongo:find-one-document>
+	</flow>
+	<flow name="GET_producer_mapper_configs_producerName" doc:id="4a20616c-a00b-41b4-a691-fd73c56eb9e7" >
+		<http:listener doc:name="/producer_mapper/configs/{producerName}" doc:id="190ecd90-d13b-435a-9a5d-0a720cae2e01" config-ref="HTTP_Listener_config" path="/producer_mapper/configs/{producerName}"/>
+		<ee:transform doc:name="Transform Query Items to JSON" doc:id="8cf728da-9c23-4ecb-8dac-b8bb6abad95c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"producerName": attributes.uriParams.producerName
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<mongo:find-documents collectionName="producerMapper" doc:name="Find documents" doc:id="744f62ce-f883-4c4c-bc34-6166b2e5ac07" config-ref="MongoDB_Config">
+			<mongo:condition-query ><![CDATA[#[{
+	producerName: payload.producerName,
+	userId: "jack"
+}]]]></mongo:condition-query>
+		</mongo:find-documents>
+	</flow>
+	<flow name="GET_producer_mapper_configs" doc:id="f2d1ae20-35b0-482f-8fa4-a9145ae85a99" >
+		<http:listener doc:name="/producer_mapper/configs" doc:id="eba14606-bcf5-47f9-8f2b-81bc04d2c525" config-ref="HTTP_Listener_config" path="/producer_mapper/configs"/>
+		<mongo:find-documents collectionName="producerMapper" doc:name="Find documents" doc:id="054124ba-39d1-42c9-83a7-1b8b61fed516" config-ref="MongoDB_Config">
+			<mongo:condition-query ><![CDATA[{
+	userId: "jack"
+}]]></mongo:condition-query>
+		</mongo:find-documents>
+	</flow>
+	<flow name="POST_producer_mapper_map_producerName_configName" doc:id="51927b45-7cff-45d5-ac47-ad90f93882a5" >
+		<http:listener doc:name="/producer_mapper/map/{producerName}/{configName}" doc:id="649adfe5-930e-4052-a176-7cc0469e5f95" config-ref="HTTP_Listener_config" path="/producer_mapper/map/{producerName}/{configName}" allowedMethods="POST" />
+		<scatter-gather doc:name="Scatter-Gather" doc:id="f899f054-ee46-4e34-bfe4-a487d4bccca1" >
+			<route >
+				<set-variable value="#[payload]" doc:name="Set Product Data as Variable" doc:id="180aed86-08e6-4007-83e1-f2d6a415646b" variableName="producer_data" />
+			</route>
+			<route >
+				<ee:transform doc:name="Transform Query Items to JSON" doc:id="084b1e96-b217-447d-895d-b86817fb25d2" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"producerName": attributes.uriParams.producerName,
+	"configName": attributes.uriParams.configName
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable value="#[payload]" doc:name="Set Query Conditon as Variable" doc:id="b7a5d642-3658-47fd-8e6b-9c77dd7c7770" variableName="query_condition"/>
+			</route>
+		</scatter-gather>
+		<mongo:find-one-document collectionName="producerMapper" doc:name="Find one document" doc:id="221f393a-9a84-4e3c-9802-5330e099e957" config-ref="MongoDB_Config">
+			<mongo:find-query><![CDATA[#[{
+	producerName: vars."query_condition".producerName,
+	configName: vars."query_condition".configName,
+	userId: "jack"
+}]]]></mongo:find-query>
+		</mongo:find-one-document>
+		<set-payload value="#[payload.config]" doc:name="Set config document's config as Payload" doc:id="9dd2050b-b1f6-40b8-b99f-1e75e332e24f" />
+		<parse-template doc:name="Parse ECOM2CDM Transformer Template" doc:id="d28f825f-2400-41e4-a8cb-8fb517c64ecf" location="ecom2cdm_test.template" />
+		<set-payload value="#[payload]" doc:name="Set transformer Payload as text/plain" doc:id="f2322ada-15aa-46f0-92a5-6ae86d7a6a7a" mimeType="text/plain" />
+		<set-variable value="#[payload]" doc:name="Set transform script as variable" doc:id="4fe98e18-558e-4b5b-aeb8-f4e5e1fcce46" variableName="transform_script" />
+		<set-payload value="#[vars.producer_data]" doc:name="Set Product Data as Payload" doc:id="a1172536-6649-400b-80fe-82aa2d3d549b" />
+		<ee:dynamic-evaluate doc:name="Dynamic Evaluate" doc:id="aa0524e4-ce39-493a-a97a-9b61feec3453" expression="#[vars.transform_script]" />
+	</flow>
+</mule>

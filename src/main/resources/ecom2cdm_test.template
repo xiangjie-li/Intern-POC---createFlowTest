@@ -1,0 +1,29 @@
+%dw 2.0
+output application/json
+
+---
+{
+	Product: payload.data map (item, index) -> {
+		"ProductSKU": item.#[output text/plain --- payload.ProductSKU],
+	    ("ProductLinks":item.#[output text/plain --- payload.ProductLinks]) if (item.#[output text/plain --- payload.ProductLinks]?),
+        "Brand": item.#[output text/plain --- payload.Brand],
+        "PrimaryProductCategory":item.#[output text/plain --- payload.PrimaryProductCategory],
+        "Title": item.#[output text/plain --- payload.Title],
+        "Name": item.#[output text/plain --- payload.Name],
+        "Price": {
+            "Currency": item.#[output text/plain --- payload.Currency],
+            "UnitListPrice": item.#[output text/plain --- payload.UnitListPrice]
+        },
+        "Description": item.#[output text/plain --- payload.Description],
+        "ImageGroup": item.#[output text/plain --- payload.ImageGroup] map (subGroup, index) -> {
+        	(subGroup.#[payload.Images] map (image, index) -> {
+        		"ImageURL": image.#[payload.ImageURL],
+                "ImageTitle": image.#[payload.ImageTitle],
+                "ImageViewType": subGroup.#[payload.ImageViewType],
+                "ImageAlternateText": image.#[payload.ImageAlternateText]
+        	})
+        },
+        "IsPreOrderable": item.#[output text/plain --- payload.IsPreOrderable],
+        "IsOrderable": item.#[output text/plain --- payload.IsOrderable]
+	}
+}

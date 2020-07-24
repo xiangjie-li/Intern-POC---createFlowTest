@@ -1,0 +1,34 @@
+%dw 2.0
+output application/json
+fun getPrice(payload) = {
+	Currency: payload.currency,
+	UnitListPrice: payload.price
+}
+
+
+---
+{
+	Product: payload.data map (item, index) -> {
+		"ProductSKU": item.#[payload.parts.ProductSKU.content],
+	    ("ProductLinks":item.#[payload.parts.ProductLinks.content]) if (item.#[payload.parts.ProductLinks.content]?),
+        "Brand": item.#[payload.parts.Brand.content],
+        "PrimaryProductCategory":item.#[payload.parts.PrimaryProductCategory.content],
+        "Title": item.#[payload.parts.Title.content],
+        "Name": item.#[payload.parts.Name.content],
+        "Price": {
+            "Currency": item.#[payload.parts.Currency.content],
+            "UnitListPrice": item.#[payload.parts.UnitListPrice.content]
+        },
+        "Description": item.#[payload.parts.Description.content],
+        "ImageGroup": item.#[payload.parts.ImageGroup.content] map (subGroup, index) -> {
+        	(subGroup.#[payload.parts.Images.content] map (image, index) -> {
+        		"ImageURL": image.#[payload.parts.ImageURL.content],
+                "ImageTitle": image.#[payload.parts.ImageTitle.content],
+                "ImageViewType": subGroup.#[payload.parts.ImageViewType.content],
+                "ImageAlternateText": image.#[payload.parts.ImageAlternateText.content]
+        	})
+        },
+        "IsPreOrderable": item.#[payload.parts.IsPreOrderable.content],
+        "IsOrderable": item.#[payload.parts.IsOrderable.content]
+	}
+}

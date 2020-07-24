@@ -1,3 +1,15 @@
 {
-  "minMuleVersion": "4.3.0"
+  "minMuleVersion": "4.3.0",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedPackages": [
+      	""
+      ],
+      "exportedResources": [
+        "beans.xml",
+        "testflow.xml"
+      ]
+    }
+  }
 }
