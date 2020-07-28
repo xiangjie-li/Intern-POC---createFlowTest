@@ -1,33 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:os="http://www.mulesoft.org/schema/mule/os"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
-http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd">
+http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd">
 	<flow name="POST_producer_mapper_config_producerName" doc:id="b70b3602-99ca-405b-a9bd-8cbd148b19f7" >
 		<http:listener doc:name="/producer_mapper/config/{producerName}" doc:id="88fadd20-a415-4bb1-b36e-32d34a379896" config-ref="HTTP_Listener_config" path="/producer_mapper/config/{producerName}" allowedMethods="POST" />
-		<set-variable value="#[attributes.uriParams.producerName]" doc:name="Set producer as Variable" doc:id="34fa31f4-b024-4dba-a34d-8d7190e54f36" variableName="producer" />
-		<ee:transform doc:name="Transform Form Data to JSON Document" doc:id="48e9fb19-82b9-4c54-b0c6-e315d4f30c0f" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
+		<set-variable value="#[attributes.uriParams.producerName]" doc:name="Set producer as Variable" doc:id="34fa31f4-b024-4dba-a34d-8d7190e54f36" variableName="producerName" />
+		<set-variable value="#[payload]" doc:name="config" doc:id="c93a8510-b08b-432c-b1d7-8dfa900ce176" variableName="config"/>
+		<java:invoke-static doc:name="Invoke static generate()" doc:id="088af594-aa09-48bd-97da-b7df2548024d" class="TransformerGenerator" method="generate(java.util.ArrayList)">
+			<java:args ><![CDATA[#[%dw 2.0
 output application/json
-
-fun getJson(payload) = {
-	mapping: payload.parts mapObject (value,key) -> {
-		(if (!(value.headers."Content-Disposition".name == "configName")) ((key) : value.content) else {})
-	}
-}
 
 ---
 
 {
-	"userId": "jack",
-	"producerName": vars.producer,
-	"configName": payload.parts.configName.content,
-	"config": (getJson(payload)).mapping
+	"arr": payload.config as Array
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform mapping to DSL" doc:id="48e9fb19-82b9-4c54-b0c6-e315d4f30c0f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+//fun getJson(payload) = {
+//	mapping: payload.parts mapObject (value,key) -> {
+//		(if (!(value.headers."Content-Disposition".name == "configName")) ((key) : value.content) else {})
+//	}
+//}
+
+---
+
+//{
+//	"userId": "jack",
+//	"producerName": vars.producer,
+//	"configName": payload.parts.configName.content,
+//	"config": (getJson(payload)).mapping
+//}
+
+
+{
+    "userId": "jack",
+    "producerName": vars.producerName,
+    "configName": vars.config.configName,
+    "config": {
+    	"target": "root",
+    	"source": "multiple",
+    	"type": "object_to_object",
+    	"mappings": payload
+    }
 }
 
 
@@ -113,7 +138,7 @@ output application/json
 		<http:listener doc:name="/producer_mapper/map/{producerName}/{configName}" doc:id="649adfe5-930e-4052-a176-7cc0469e5f95" config-ref="HTTP_Listener_config" path="/producer_mapper/map/{producerName}/{configName}" allowedMethods="POST" />
 		<scatter-gather doc:name="Scatter-Gather" doc:id="f899f054-ee46-4e34-bfe4-a487d4bccca1" >
 			<route >
-				<set-variable value="#[payload]" doc:name="Set Product Data as Variable" doc:id="180aed86-08e6-4007-83e1-f2d6a415646b" variableName="producer_data" />
+				<set-variable value="#[payload]" doc:name="Set Product Data as Variable" doc:id="180aed86-08e6-4007-83e1-f2d6a415646b" variableName="product_data" />
 			</route>
 			<route >
 				<ee:transform doc:name="Transform Query Items to JSON" doc:id="084b1e96-b217-447d-895d-b86817fb25d2" >
@@ -137,7 +162,72 @@ output application/json
 	userId: "jack"
 }]]]></mongo:find-query>
 		</mongo:find-one-document>
-		<set-payload value="#[payload.config]" doc:name="Set config document's config as Payload" doc:id="9dd2050b-b1f6-40b8-b99f-1e75e332e24f" />
+		<set-variable value="#[payload]" doc:name="mapping_config" doc:id="21a54d2f-0d82-4764-9f5b-24f56ad12bbc" variableName="mapping_config"/>
+		<ee:transform doc:name="Transform Message" doc:id="cd82854d-7fd9-4e77-8d96-6bef4be8c419" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+var applyMapping = (data, mapping, index) -> (
+    if (mapping."type" == "array_to_array") {
+    	(mapping.target) : data[mapping.source] map (item, idx) -> applyMappings(item,mapping.mappings, idx)
+	}
+	else if (mapping."type" == "field_to_field") {
+		(
+		if (mapping.targetDataType == "string") {
+			(mapping.target) : (data[mapping.source] as String)
+		}
+		else if (mapping.targetDataType == "number") {
+			(mapping.target) : (data[mapping.source] as Number)
+		}
+		else {
+			(mapping.target) : data[mapping.source]
+		}
+		)
+	    
+	}
+	else if (mapping."type" == "field_to_object") {
+		(mapping.target) : applyMappings(data, mapping.mappings, index)
+	}
+	else if (mapping."type" == "object_to_field") {
+		(mapping.target): (applyMappings(data[mapping.source], mapping.mappings, index))[mapping.target]
+//        (testMapping(data[mapping.source], mapping.mappings))
+	}
+	else if (mapping."type" == "object_to_object") {
+		(if (mapping."source" == "multiple") {
+		    (mapping.target) : applyMappings(data, mapping.mappings, index)
+		}
+		else {
+			(mapping.target) : applyMappings(data[mapping.source], mapping.mappings, index)
+		})
+	}
+	else if (mapping."type" == "index_to_field") {
+		(mapping.target) : index
+	}
+	else if (mapping."type" == "content_to_field") {
+		(mapping.target) : mapping.source
+	}
+	else if (mapping."type" == "arrayItem_to_field") {
+		(mapping.target) : (applyMappings(data[mapping.source][mapping.itemIndex], mapping.mappings, index))[mapping.target]
+	}
+	else {}
+)
+
+var applyMappings = (data, mappings, index) -> {
+	(
+		mappings map (mapping) -> applyMapping(data, mapping, index)
+	)
+}
+
+
+---
+
+(applyMapping(vars."product_data", vars."mapping_config".config, 0)).root]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="producer-mapper-apiFlow" doc:id="df51ff5f-887b-43cd-a4cf-74a20be8e3a1" >
+		<http:listener doc:name="Listener" doc:id="58fc5b87-aa7e-40f1-81aa-d93fb0b3cf14" config-ref="HTTP_Listener_config" path="/something"/>
 		<parse-template doc:name="Parse ECOM2CDM Transformer Template" doc:id="d28f825f-2400-41e4-a8cb-8fb517c64ecf" location="ecom2cdm_test.template" />
 		<set-payload value="#[payload]" doc:name="Set transformer Payload as text/plain" doc:id="f2322ada-15aa-46f0-92a5-6ae86d7a6a7a" mimeType="text/plain" />
 		<set-variable value="#[payload]" doc:name="Set transform script as variable" doc:id="4fe98e18-558e-4b5b-aeb8-f4e5e1fcce46" variableName="transform_script" />

@@ -21,11 +21,11 @@ http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mo
 	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="65f3af51-9256-4a13-b4cd-341979fa2fe5" >
 		<http:listener-connection host="0.0.0.0" port="8081" />
 	</http:listener-config>
-	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="da65119a-4587-4e4d-a89b-8d0403df2144" basePath="//s/SiteGenesis/dw/shop/v20_4" >
-		<http:request-connection protocol="HTTPS" host="staging-functional37-qa.demandware.net" port="443"/>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="da65119a-4587-4e4d-a89b-8d0403df2144">
+		<http:request-connection protocol="HTTPS" port="443"/>
 	</http:request-config>
-	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="955ac1ad-c266-4fe9-bd9f-e52a6a540221" basePath="//s/SiteGenesis/dw/shop/v20_4/products" >
-		<http:request-connection protocol="HTTPS" host="staging-functional37-qa.demandware.net" port="443" />
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="955ac1ad-c266-4fe9-bd9f-e52a6a540221">
+		<http:request-connection protocol="HTTPS" port="443" />
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration2" doc:name="HTTP Request configuration" doc:id="16a17bf6-9986-4168-a3a1-8f8ede7bc866" >
 		<http:request-connection protocol="HTTPS" host="https://www.googleapis.com" port="443" />
@@ -59,61 +59,82 @@ http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mo
 	<http:request-config name="HTTP_Request_configuration9" doc:name="HTTP Request configuration" doc:id="c887ae2d-86c6-4976-aefd-e5a3d16ef0e1" >
 		<http:request-connection host="localhost" port="8081" />
 	</http:request-config>
-	<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="7bf706b6-10c2-4c9d-a74c-b02112de7be2" >
+	
+	<http:request-config name="HTTP_Request_configuration10" doc:name="HTTP Request configuration" doc:id="eaa1b76e-850c-46aa-95c1-e7f47de78770" >
+		<http:request-connection protocol="HTTPS" port="443" />
+	</http:request-config>
+		<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="e436e1e0-af4c-4821-8b76-21295807cb31" >
 		<mongo:connection-string-connection connectionString="mongodb+srv://jack:qpqEGoWDGHYWWNTT@poctest.sq81g.mongodb.net/db?retryWrites=true&amp;w=majority" />
 	</mongo:config>
 	<flow name="produce_flow" doc:id="e0eab66f-62e5-4ea8-b108-ebbc2e2d26d4" initialState="started">
 		<http:listener doc:name="Listener" doc:id="47bcf15d-41e6-4145-bf88-95a666e94163" config-ref="HTTP_Listener_config" path="/connection/produce" allowedMethods="GET"/>
-		<choice doc:name="Choice" doc:id="723f3423-bb4c-45bc-8738-d013536bad24" >
-			<when expression="vars.routing_config.producer_connection.name == 'ecom'">
-				<http:request method="POST" doc:name="RequestShopperJWT" doc:id="dd228f3a-d82f-48ae-9959-f5eb3ca16c6d" config-ref="HTTP_Request_configuration" path="/customers/auth">
+		<mongo:find-one-document doc:name="Find one document" doc:id="882489d3-8814-4384-a794-d82c140c0bd0" config-ref="MongoDB_Config" collectionName="connection">
+			<mongo:find-query ><![CDATA[#[{
+	"name": vars.routing_config."config".producer_connection.name,
+	"type": "producer",
+	"userId": vars.routing_config.userId
+}]]]></mongo:find-query>
+		</mongo:find-one-document>
+		<set-variable value="#[payload]" doc:name="connection_config" doc:id="563d8d13-5001-403e-b7b6-1dc766200b0a" variableName="connection_config"/>
+		<http:request method="POST" doc:name="RequestShopperJWT" doc:id="dd228f3a-d82f-48ae-9959-f5eb3ca16c6d" config-ref="HTTP_Request_configuration" url="#[vars.connection_config.config.tokenUrl]">
 			<http:body><![CDATA[{
 	"type": "guest"
 }]]></http:body>
-			<http:query-params><![CDATA[#[output application/java
+			<http:query-params><![CDATA[#[output application/json
 ---
 {
-	"client_id" : "6c957560-464f-4a98-ad0f-5e9662527e27"
+	"client_id" : vars.connection_config.config.client_id
 }]]]></http:query-params>
 		</http:request>
-				<http:request method="GET" doc:name="OCAPI connector" doc:id="183ab826-0190-4c76-a138-5f3aa16db2c9" path="/(mitsubishi-lt-40148,mitsubishi-lt-46149)" config-ref="HTTP_Request_configuration1">
+		<http:request method="GET" doc:name="OCAPI connector" doc:id="183ab826-0190-4c76-a138-5f3aa16db2c9" config-ref="HTTP_Request_configuration1" url="#[vars.connection_config.config.url]">
 			<http:headers><![CDATA[#[{
 	"Authorization": attributes.headers.Authorization
 }]]]></http:headers>
 		</http:request>
-			</when>
-			<otherwise >
-				<set-payload value="not ecom" doc:name="Set Payload" doc:id="3220a1cd-77af-4a59-bcf4-7fcec32a1781" />
-			</otherwise>
-		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="9b4fd07a-dd22-43c6-b792-7dc25ea44efe" message="#[payload]" />
 	</flow>
 	<flow name="consume_flow" doc:id="54ea6086-3d0e-416c-9425-b0fd2a41e3b2" >
 		<http:listener doc:name="Listener" doc:id="185e67a7-a936-411a-b0d0-5616a655ed95" config-ref="HTTP_Listener_config" path="/connection/consume" allowedMethods="POST"/>
 		<set-variable value="#[payload]" doc:name="product data" doc:id="4a79b467-a3ca-4c56-b060-72627c393d89" variableName="product_data" />
-		<choice doc:name="Choice" doc:id="da5b698c-d11a-45a2-8485-bddc86eb2373" >
-			<when expression="vars.routing_config.consumer.name == 'facebook'">
-				<http:request method="POST" doc:name="Facebook Connector" doc:id="a93e3c0a-f1b1-4fc4-aa2c-04196bee9ec5" config-ref="HTTP_Request_configuration7" url="https://graph.facebook.com:443/v7.0/689293501912943/batch">
-					<http:body><![CDATA[#[vars.product_data]]]></http:body>
-			<http:query-params><![CDATA[#[output application/java
+		<mongo:find-one-document doc:name="Find one document" doc:id="4be2065c-a436-425a-a4dc-a9fe7df92f33" config-ref="MongoDB_Config" collectionName="connection">
+			<mongo:find-query><![CDATA[#[{
+	"name": vars.consumer_config.consumer_connection.name,
+	"type": "consumer",
+	"userId": vars.routing_config.userId
+}]]]></mongo:find-query>
+		</mongo:find-one-document>
+		<set-variable value="#[payload]" doc:name="connection_config" doc:id="e8963af8-6644-407a-aea0-2a6d31a226cc" variableName="connection_config" />
+		<java:invoke-static doc:name="Invoke getRefreshToken()" doc:id="b7b5cd0d-9164-4098-b2c8-2e6234152b07" class="TokenRefresher" method="getRefreshToken(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+			<java:args><![CDATA[#[%dw 2.0
+output application/json
+
 ---
+
 {
-	"Key" : "AIzaSyCXpGcOJPaq573UuArs7z_0okzYO3A"
+	"systemName": vars."connection_config"."name" as String,
+	"refreshToken": vars."connection_config"."config"."refreshToken" as String,
+	"tokenUrl": vars."connection_config"."config".tokenUrl as String,
+	"clientId": vars.connection_config."config".clientId as String,
+	"clientSecret": vars.connection_config."config".clientSecret as String
+}]]]></java:args>
+		</java:invoke-static>
+		<http:request method="POST" doc:name="Request" doc:id="8cc90611-183d-4ab5-84a4-8d1350d467eb" config-ref="HTTP_Request_configuration10" url="#[vars.connection_config.config.url]">
+			<http:body><![CDATA[#[vars.product_data]]]></http:body>
+			<http:headers><![CDATA[#[{
+	"Authorization": "Bearer " ++ payload
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[{
+	(if (vars.connection_config.config.APIKey != null) {
+		"Key": vars.connection_config.config.APIKey
+	}
+	else {
+		
+	})
 }]]]></http:query-params>
-				</http:request>
-			</when>
-			<otherwise >
-				<http:request method="POST" doc:name="Google Connector" doc:id="95b6eff9-0532-4c25-9541-dae84f2ce1fb" config-ref="HTTP_Request_configuration8" url="https://www.googleapis.com/content/v2.1/products/batch">
-					<http:body ><![CDATA[#[vars.product_data]]]></http:body>
-					<http:query-params><![CDATA[#[output application/java
----
-{
-	"Key" : "AIzaSyCXpGcOJPaq573UuArs7z_0okzYO3A"
-}]]]></http:query-params>
-				</http:request>
-			</otherwise>
-		</choice>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="357652f0-3bd6-4de7-8f35-7184d5bf88cf" message="#[payload]"/>
 	</flow>
-	<flow name="POST_routing_execute" doc:id="59d0b3c0-a18b-45f5-accd-15d1f8eac6fd" initialState="started">
+	<flow name="POST_routing_execute_configName" doc:id="59d0b3c0-a18b-45f5-accd-15d1f8eac6fd" initialState="started">
 		<http:listener doc:name="Listener" doc:id="ce4f71f2-7788-4c88-9a51-a6ec89a7f6df" config-ref="HTTP_Listener_config" path="/routing/execute/{configName}" allowedMethods="POST"/>
 		<ee:transform doc:name="Transform Form Data to JSON Document" doc:id="9b5caa5b-a34c-41c3-8ddc-792cc492bcfa">
 			<ee:message>
@@ -132,84 +153,38 @@ output application/json
 	userId: payload.userId
 }]]]></mongo:find-query>
 		</mongo:find-one-document>
+		<logger level="INFO" doc:name="Logger" doc:id="9ac270d8-2f5f-45d3-83fa-380bdc0417d3" message="#[payload]"/>
 		<set-variable value="#[payload]" doc:name="routing_config" doc:id="2958c3f4-87e8-4ea1-8b0a-a25676c57943" variableName="routing_config" />
 		<flow-ref doc:name="Reference to produce flow" doc:id="bee37b40-66ae-4f58-809d-afa944d0eda1" name="produce_flow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="d36502b0-59b0-406d-aad6-8b662e1fc68d" message="#[payload]"/>
 		<http:request method="POST" doc:name="producer mapper" doc:id="873b5c03-5ff0-4192-b335-08a2412cfda8" config-ref="HTTP_Request_configuration3" path="/map/{producerName}/{configName}" >
 			<http:uri-params ><![CDATA[#[output application/java
 ---
 {
-	"configName" : vars.routing_config.producer_mapper.name,
-	"producerName" : vars.routing_config.producer_connection.name
+	"configName" : vars.routing_config.config.producer_mapper.name,
+	"producerName" : vars.routing_config.config.producer_connection.name
 }]]]></http:uri-params>
 		</http:request>
-		<http:request method="POST" doc:name="consumer mapper" doc:id="381110a7-3236-4286-8e2b-12c69d79f03f" config-ref="HTTP_Request_configuration5" path="/map/{consumerName}/{configName}" >
-			<http:headers ><![CDATA[#[output application/java
+		<logger level="INFO" doc:name="Logger" doc:id="be9f7e93-56e8-45d0-a191-242a63740d6d" message="#[payload]"/>
+		<set-variable value="#[payload]" doc:name="cdm_data" doc:id="0a406c49-1953-48dc-a7fb-4ca7455a219f" variableName="cdm_data"/>
+		<foreach doc:name="For Each" doc:id="5ddc1bd9-144c-49b7-983d-1daf66a805fc" collection="#[vars.routing_config.config.consumers]">
+			<set-variable value="#[payload]" doc:name="consumer_config" doc:id="7ccfca3b-6aa5-4247-8326-3c4cb05dffc7" variableName="consumer_config"/>
+			<http:request method="POST" doc:name="consumer mapper" doc:id="381110a7-3236-4286-8e2b-12c69d79f03f" config-ref="HTTP_Request_configuration5" path="/map/{consumerName}/{configName}">
+			<http:body ><![CDATA[#[vars.cdm_data]]]></http:body>
+				<http:uri-params><![CDATA[#[output application/json
 ---
 {
-	"consumer" : vars."producer&consumer".consumer
-}]]]></http:headers>
-			<http:uri-params ><![CDATA[#[output application/java
----
-{
-	"consumerName" : vars.routing_config.consumers[0].consumer_connection.name,
-	"configName" : vars.routing_config.consumers[0].consumer_mapper.name
+	"consumerName" : vars.consumer_config.consumer_connection.name,
+	"configName" : vars.consumer_config.consumer_mapper.name
 }]]]></http:uri-params>
 		</http:request>
-		<flow-ref doc:name="Reference to consume flow" doc:id="89f1ca1d-cc31-4094-84ba-1b1d9ea7930f" name="consume_flow"/>
+			<logger level="INFO" doc:name="Logger" doc:id="ddc313f8-caef-480b-a35d-087511ee34ba" message="#[payload]" />
+			<flow-ref doc:name="Reference to consume flow" doc:id="89f1ca1d-cc31-4094-84ba-1b1d9ea7930f" name="consume_flow" />
+		</foreach>
 	</flow>
 	<flow name="POST_routing_config" doc:id="a9821d46-fb76-40a2-9ed9-a1b14b39110d" >
 		<http:listener doc:name="/routing/config" doc:id="6023580d-be4b-425c-ab8e-3d96408447d3" config-ref="HTTP_Listener_config" path="/routing/config" allowedMethods="POST"/>
-		<scatter-gather doc:name="Scatter-Gather" doc:id="64059aca-48bc-4cca-af75-7588f9cf934a" >
-			<route >
-				<set-variable value="#[payload.parts.producerName.content]" doc:name="producerName" doc:id="4e8b71ec-43f0-439e-a575-760a2b7a56d9" variableName="producerName"/>
-			</route>
-			<route >
-				<set-variable value="#[payload.parts.consumerName.content]" doc:name="consumerName" doc:id="8430f84e-5536-4b37-8901-7a24113c4189" variableName="consumerName"/>
-			</route>
-			<route >
-				<set-variable value="#[payload.parts.producerMapper.content]" doc:name="producerMapper" doc:id="65cea060-399d-4485-9a27-c9623edfc078" variableName="producerMapper"/>
-			</route>
-			<route >
-				<set-variable value="#[payload.parts.consumerMapper.content]" doc:name="consumerMapper" doc:id="c33908d3-13a6-408d-9319-3e4bce46e0fd" variableName="consumerMapper"/>
-			</route>
-			<route >
-				<set-variable value="#[payload.parts.schedule.content]" doc:name="schedule" doc:id="6a9573f9-f355-4b8c-960a-dc2f93f5115e" variableName="schedule"/>
-			</route>
-			<route >
-				<set-variable value="#[payload.parts.configName.content]" doc:name="Set configName as Variable" doc:id="dd538a39-39df-41a3-8957-7e89825eb17e" variableName="configName"/>
-			</route>
-		</scatter-gather>
-		<ee:transform doc:name="Transform Message" doc:id="93da98c3-3708-475e-a5d4-fecf643eb91a" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
-
-
----
-{
-    userId: "jack",
-    configName: vars.configName,
-    producer_connection: {
-        name: vars.producerName
-    },
-    producer_mapper: {
-        name: vars.producerMapper
-    },
-    consumers: [
-        {
-            consumer_connection: {
-                name: vars.consumerName
-            },
-            consumer_mapper: {
-                name: vars.consumerMapper
-            }
-        }
-    ],
-    shedule: "on demand"
-}
-]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
+		<set-variable value="#[payload]" doc:name="routing_config" doc:id="dd538a39-39df-41a3-8957-7e89825eb17e" variableName="routing_config" />
 		<mongo:find-one-and-update-document collectionName="routing" doc:name="Find one and update document" doc:id="6879b383-a720-4ac0-8f7f-3643b214fbaa" config-ref="MongoDB_Config" upsert="true">
 			<mongo:find-query ><![CDATA[#[{
 	userId: payload.userId,
@@ -381,5 +356,27 @@ output application/json
 				</http:request>
 		<set-variable value="#[payload]" doc:name="connection_config_producer" doc:id="910d50be-075b-4f76-91f0-949a90c870ea" variableName="connection_config_producer" />
 		<set-variable value="#[payload]" doc:name="connection_config_consumer" doc:id="9223d845-3367-41f2-833f-033113e50f85" variableName="connection_config_consumer" />
+		<choice doc:name="Choice" doc:id="da5b698c-d11a-45a2-8485-bddc86eb2373">
+			<when expression="vars.routing_config.consumer.name == 'facebook'">
+				<http:request method="POST" doc:name="Facebook Connector" doc:id="a93e3c0a-f1b1-4fc4-aa2c-04196bee9ec5" config-ref="HTTP_Request_configuration7" url="https://graph.facebook.com:443/v7.0/689293501912943/batch">
+					<http:body><![CDATA[#[vars.product_data]]]></http:body>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"Key" : "AIzaSyCXpGcOJPaq573UuArs7z_0okzYO3A"
+}]]]></http:query-params>
+				</http:request>
+			</when>
+			<otherwise>
+				<http:request method="POST" doc:name="Google Connector" doc:id="95b6eff9-0532-4c25-9541-dae84f2ce1fb" config-ref="HTTP_Request_configuration8" url="https://www.googleapis.com/content/v2.1/products/batch">
+					<http:body><![CDATA[#[vars.product_data]]]></http:body>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	"Key" : "AIzaSyCXpGcOJPaq573UuArs7z_0okzYO3A"
+}]]]></http:query-params>
+				</http:request>
+			</otherwise>
+		</choice>
 	</flow>
 </mule>

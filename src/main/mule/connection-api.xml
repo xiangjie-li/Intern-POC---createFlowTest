@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo" xmlns:os="http://www.mulesoft.org/schema/mule/os"
-	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd">
+http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd">
 	<flow name="POST_connection_config_producer_producerName" doc:id="d478bb93-2bfe-4a0b-9c42-5178b4f4500c" >
 		<http:listener doc:name="/connection/config/producer/{producerName}" doc:id="7a5c83db-ecce-4768-a8d0-4166585b9003" config-ref="HTTP_Listener_config" path="/connection/config/producer/{producerName}" allowedMethods="POST"/>
 		<set-variable value="#[attributes.uriParams.producerName]" doc:name="Set producerName as Variable" doc:id="d715525c-4ed8-4023-8350-dac29220b4c2" variableName="producerName"/>
@@ -24,10 +25,10 @@ fun getJson(payload) = {
 ---
 
 {
-	"userId": "jack",
-	"type": "producer",
+	"userId": payload.userId,
+	"type": payload."type",
 	"name": vars.producerName,
-	"config": (getJson(payload)).mapping
+	"config": payload.config
 }
 
 ]]></ee:set-payload>
@@ -73,7 +74,24 @@ output application/json
 	</flow>
 	<flow name="POST_connection_config_consumer_consumerName" doc:id="92fdab1b-2ac6-4960-a489-2d11a0dbd118" >
 		<http:listener doc:name="/connection/config/consumer/{consumerName}" doc:id="9ab4421b-b654-4d56-8119-c347e79ddcc8" config-ref="HTTP_Listener_config" path="/connection/config/consumer/{consumerName}" allowedMethods="POST"/>
-		<set-variable value="#[attributes.uriParams.consumerName]" doc:name="Set consumerName as Variable" doc:id="e62d1171-a4f5-4ead-a115-e6f95fe16a9b" variableName="consumerName" />
+		<set-variable value="#[attributes.uriParams.consumerName]" doc:name="consumerName " doc:id="e62d1171-a4f5-4ead-a115-e6f95fe16a9b" variableName="consumerName" />
+		<set-variable value="#[payload]" doc:name="config" doc:id="5d069a3d-179e-4c60-8faf-4dc6bccef34d" variableName="connection_config"/>
+		<java:invoke-static doc:name="Invoke static" doc:id="d104c6b5-162e-44d8-b259-0be7b0099fc3" class="TokenGetter" method="TokenLoader(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+			<java:args ><![CDATA[#[%dw 2.0
+output application/json
+
+---
+
+{
+	"name": vars."connection_config"."name" as String,
+	"userid": vars."connection_config".userId as String ++ vars."connection_config".name as String,
+	"scope": vars."connection_config".config.scope as String,
+	"tokenUrl": vars."connection_config".config.tokenUrl as String,
+	"authorizeUrl": vars."connection_config".config.authorizeUrl as String,
+	"clientId": vars.connection_config.config.clientId as String,
+	"clientSecret": vars.connection_config.config.clientSecret as String
+}]]]></java:args>
+		</java:invoke-static>
 		<ee:transform doc:name="Transform Form Data to JSON Document" doc:id="c6a7890e-a6ef-41b4-ac5a-ee0b265daaa9" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
@@ -88,10 +106,10 @@ fun getJson(payload) = {
 ---
 
 {
-	"userId": "jack",
-	"type": "consumer",
+	"userId": vars.connection_config.userId,
+	"type": vars.connection_config."type",
 	"name": vars.consumerName,
-	"config": (getJson(payload)).mapping
+	"config": (vars.connection_config.config ++ {refreshToken : payload})
 }
 
 ]]></ee:set-payload>

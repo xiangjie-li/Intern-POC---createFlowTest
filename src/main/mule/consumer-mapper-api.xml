@@ -1,16 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:os="http://www.mulesoft.org/schema/mule/os"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
-http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd">
+http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd">
 	<flow name="POST_consumer_mapper_config_consumerName" doc:id="288a2ba5-9221-49de-9a23-9c9bf69f25c8">
 		<http:listener doc:name="/consumer_mapper/config/{consumerName}" doc:id="e21c3763-d06a-4376-ba80-a3eec5083e99" config-ref="HTTP_Listener_config" path="/consumer_mapper/config/{consumerName}" allowedMethods="POST"/>
-		<set-variable value="#[attributes.uriParams.consumerName]" doc:name="Set Consumer as Variable" doc:id="b9f3e8bb-70fe-48d0-ab7e-414d9efc5bc5" variableName="consumer" />
-		<ee:transform doc:name="Transform Form Data to JSON Document" doc:id="c10800df-0025-45d1-b481-87f7145f6445" >
+		<set-variable value="#[attributes.uriParams.consumerName]" doc:name="Set Consumer as Variable" doc:id="b9f3e8bb-70fe-48d0-ab7e-414d9efc5bc5" variableName="consumerName" />
+		<set-variable value="#[payload]" doc:name="config" doc:id="b07da19b-42a5-40cb-8a21-e1c2c670a075" variableName="config"/>
+		<java:invoke-static method="generate(java.util.ArrayList)" doc:name="Invoke static generate()" doc:id="b32931db-da22-49ea-b8c1-b47f5e92de33" class="TransformerGenerator">
+			<java:args><![CDATA[#[%dw 2.0
+output application/json
+
+---
+
+{
+	"arr": payload.config as Array
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform mapping to DSL" doc:id="c10800df-0025-45d1-b481-87f7145f6445" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -22,12 +34,24 @@ fun getJson(payload) = {
 }
 
 ---
+//
+//{
+//	"userId": "jack",
+//	"consumerName": vars.consumer,
+//	"configName": payload.parts.configName.content,
+//	"config": (getJson(payload)).mapping
+//}
 
 {
-	"userId": "jack",
-	"consumerName": vars.consumer,
-	"configName": payload.parts.configName.content,
-	"config": (getJson(payload)).mapping
+    "userId": "jack",
+    "consumerName": vars.consumerName,
+    "configName": vars.config.configName,
+    "config": {
+    	"target": "root",
+    	"source": "multiple",
+    	"type": "object_to_object",
+    	"mappings": payload
+    }
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
@@ -117,18 +141,87 @@ output application/json
 	userId: "jack"
 }]]]></mongo:find-query>
 		</mongo:find-one-document>
-		<set-payload value="#[payload.config]" doc:name="Set config document's config as Payload" doc:id="0557ecb6-da7f-4793-97aa-cae1d1826ca1" />
-		<choice doc:name="Choice" doc:id="e25c5455-d85d-48df-9c50-1c97da93ec56" >
+		<set-variable value="#[payload.config]" doc:name="mapping_config" doc:id="815147f8-9f01-432a-a6b4-fe12b1c5ac97" variableName="mapping_config"/>
+		<ee:transform doc:name="Transform Message" doc:id="5c8cb40d-4d03-435b-87ff-d6f6321928b6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import * from dw::core::Strings
+output application/json
+
+var applyMapping = (data, mapping, index) -> (
+    if (mapping."type" == "array_to_array") {
+    	(mapping.target) : data[mapping.source] map (item, idx) -> applyMappings(item,mapping.mappings, idx)
+	}
+	else if (mapping."type" == "field_to_field") {
+		(
+		if (mapping.targetDataType == "string") {
+			(mapping.target) : (data[mapping.source] as String)
+		}
+		else if (mapping.targetDataType == "integer") {
+			(mapping.target) : (data[mapping.source] as String {format: "#"}) as Number
+		}
+		else if (mapping.targetDataType == "float")  {
+			(mapping.target) : (data[mapping.source] as Number {format: "#.00"})
+		}
+		else {
+			(mapping.target) : data[mapping.source]
+		}
+		)
+	    
+	}
+	else if (mapping."type" == "field_to_object") {
+		(mapping.target) : applyMappings(data, mapping.mappings, index)
+	}
+	else if (mapping."type" == "object_to_field") {
+		(mapping.target): (applyMappings(data[mapping.source], mapping.mappings, index))[mapping.target]
+//        (testMapping(data[mapping.source], mapping.mappings))
+	}
+	else if (mapping."type" == "object_to_object") {
+		(if (mapping."source" == "multiple") {
+		    (mapping.target) : applyMappings(data, mapping.mappings, index)
+		}
+		else {
+			(mapping.target) : applyMappings(data[mapping.source], mapping.mappings, index)
+		})
+	}
+	else if (mapping."type" == "index_to_field") {
+		(mapping.target) : index
+	}
+	else if (mapping."type" == "content_to_field") {
+		(mapping.target) : mapping.source
+	}
+	else if (mapping."type" == "arrayItem_to_field") {
+		(mapping.target) : (applyMappings(data[mapping.source][mapping.itemIndex], mapping.mappings, index))[mapping.target]
+	}
+	else {}
+)
+
+var applyMappings = (data, mappings, index) -> {
+	(
+		mappings map (mapping) -> applyMapping(data, mapping, index)
+	)
+}
+
+
+---
+
+(applyMapping(vars."product_data", vars."mapping_config", 0)).root]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="consumer-mapper-apiFlow" doc:id="5958bf12-21b0-4800-9410-44d7df5ba1e9" >
+		<http:listener doc:name="Listener" doc:id="da744f2a-3c2e-4e87-91cf-18c29873652f" config-ref="HTTP_Listener_config" path="/whatever"/>
+		<choice doc:name="Choice" doc:id="e25c5455-d85d-48df-9c50-1c97da93ec56">
 			<when expression="vars.consumerName == 'facebook'">
 				<parse-template doc:name="Parse Template" doc:id="2e0b2a73-294b-4149-93ac-1821b9c99bf8" location="cdm2facebook.template" />
 			</when>
-			<otherwise >
-				<parse-template doc:name="Parse Template" doc:id="d2ee1db5-d403-4ca1-a199-9c6a4db03b7b" location="cdm2google.template"/>
+			<otherwise>
+				<parse-template doc:name="Parse Template" doc:id="d2ee1db5-d403-4ca1-a199-9c6a4db03b7b" location="cdm2google.template" />
 			</otherwise>
 		</choice>
-		<set-payload value="#[payload]" doc:name="Set transformer payload as text/plain" doc:id="e5e30197-0e2a-425b-9d64-8b5d71c442f8" mimeType="text/plain"/>
-		<set-variable value="#[payload]" doc:name="Set transform script as variable" doc:id="e9241577-dbbe-4905-940c-559f92bef9b2" variableName="transform_script"/>
+		<set-payload value="#[payload]" doc:name="Set transformer payload as text/plain" doc:id="e5e30197-0e2a-425b-9d64-8b5d71c442f8" mimeType="text/plain" />
+		<set-variable value="#[payload]" doc:name="Set transform script as variable" doc:id="e9241577-dbbe-4905-940c-559f92bef9b2" variableName="transform_script" />
 		<set-payload value="#[vars.product_data]" doc:name="Set Product Data as Payload" doc:id="41643ae2-7542-4856-a2cc-5a693b9be9ed" />
-		<ee:dynamic-evaluate doc:name="Dynamic Evaluate" doc:id="57c89de2-c3e7-496f-8885-253546604aab" expression="#[vars.transform_script]"/>
+		<ee:dynamic-evaluate doc:name="Dynamic Evaluate" doc:id="57c89de2-c3e7-496f-8885-253546604aab" expression="#[vars.transform_script]" />
 	</flow>
 </mule>
