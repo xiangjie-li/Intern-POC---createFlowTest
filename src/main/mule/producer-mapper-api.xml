@@ -11,6 +11,14 @@ http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/jav
 	<flow name="POST_producer_mapper_config_producerName" doc:id="b70b3602-99ca-405b-a9bd-8cbd148b19f7" >
 		<http:listener doc:name="/producer_mapper/config/{producerName}" doc:id="88fadd20-a415-4bb1-b36e-32d34a379896" config-ref="HTTP_Listener_config" path="/producer_mapper/config/{producerName}" allowedMethods="POST" />
 		<set-variable value="#[attributes.uriParams.producerName]" doc:name="Set producer as Variable" doc:id="34fa31f4-b024-4dba-a34d-8d7190e54f36" variableName="producerName" />
+		<ee:transform doc:name="Transform Message" doc:id="cf5d92f5-131e-4c04-8019-a1cb4c771b20" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload,"application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
 		<set-variable value="#[payload]" doc:name="config" doc:id="c93a8510-b08b-432c-b1d7-8dfa900ce176" variableName="config"/>
 		<java:invoke-static doc:name="Invoke static generate()" doc:id="088af594-aa09-48bd-97da-b7df2548024d" class="TransformerGenerator" method="generate(java.util.ArrayList)">
 			<java:args ><![CDATA[#[%dw 2.0
@@ -47,6 +55,7 @@ output application/json
     "userId": "jack",
     "producerName": vars.producerName,
     "configName": vars.config.configName,
+    "pathMapping": vars.config.config,
     "config": {
     	"target": "root",
     	"source": "multiple",

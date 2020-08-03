@@ -11,6 +11,14 @@ http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/jav
 	<flow name="POST_consumer_mapper_config_consumerName" doc:id="288a2ba5-9221-49de-9a23-9c9bf69f25c8">
 		<http:listener doc:name="/consumer_mapper/config/{consumerName}" doc:id="e21c3763-d06a-4376-ba80-a3eec5083e99" config-ref="HTTP_Listener_config" path="/consumer_mapper/config/{consumerName}" allowedMethods="POST"/>
 		<set-variable value="#[attributes.uriParams.consumerName]" doc:name="Set Consumer as Variable" doc:id="b9f3e8bb-70fe-48d0-ab7e-414d9efc5bc5" variableName="consumerName" />
+		<ee:transform doc:name="Transform Message" doc:id="f71665ea-95a4-40f0-a05e-7926c8a21f9f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload,"application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
 		<set-variable value="#[payload]" doc:name="config" doc:id="b07da19b-42a5-40cb-8a21-e1c2c670a075" variableName="config"/>
 		<java:invoke-static method="generate(java.util.ArrayList)" doc:name="Invoke static generate()" doc:id="b32931db-da22-49ea-b8c1-b47f5e92de33" class="TransformerGenerator">
 			<java:args><![CDATA[#[%dw 2.0
@@ -46,6 +54,7 @@ fun getJson(payload) = {
     "userId": "jack",
     "consumerName": vars.consumerName,
     "configName": vars.config.configName,
+    "pathMapping": vars.config.config, 
     "config": {
     	"target": "root",
     	"source": "multiple",

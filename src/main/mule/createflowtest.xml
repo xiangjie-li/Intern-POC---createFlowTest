@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+
 <mule xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
 	xmlns:salesforce-composite="http://www.mulesoft.org/schema/mule/salesforce-composite"
 	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth" xmlns:shop-products-categories-connector="http://www.mulesoft.org/schema/mule/shop-products-categories-connector" xmlns:shopper-products="http://www.mulesoft.org/schema/mule/shopper-products" xmlns:ecom-mapping-api="http://www.mulesoft.org/schema/mule/ecom-mapping-api" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:spring="http://www.mulesoft.org/schema/mule/spring" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
@@ -18,11 +19,22 @@ http://www.mulesoft.org/schema/mule/salesforce-composite http://www.mulesoft.org
 http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
 http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd">
 	
-	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="65f3af51-9256-4a13-b4cd-341979fa2fe5" >
-		<http:listener-connection host="0.0.0.0" port="8081" />
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="47bcf15d-41e6-4145-bf88-95a666e94163">
+		<http:listener-connection host="0.0.0.0" port="8081"/>
+		<http:listener-interceptors >
+			<http:cors-interceptor >
+				<http:origins >
+					<http:origin url="http://localhost:3001" accessControlMaxAge="30000" >
+						<http:allowed-methods >
+							<http:method methodName="GET" />
+							<http:method methodName="POST" />
+						</http:allowed-methods>
+					</http:origin>
+				</http:origins>
+			</http:cors-interceptor>
+		</http:listener-interceptors>
 	</http:listener-config>
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="da65119a-4587-4e4d-a89b-8d0403df2144">
-		<http:request-connection protocol="HTTPS" port="443"/>
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="955ac1ad-c266-4fe9-bd9f-e52a6a540221">
 		<http:request-connection protocol="HTTPS" port="443" />
@@ -31,13 +43,13 @@ http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mo
 		<http:request-connection protocol="HTTPS" host="https://www.googleapis.com" port="443" />
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration3" doc:name="HTTP Request configuration" doc:id="64a48b0c-a209-458b-92ed-8da121e3a07e" basePath="/producer_mapper">
-		<http:request-connection host="localhost" port="8081" />
+		<http:request-connection host="${host}"/>
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration4" doc:name="HTTP Request configuration" doc:id="55904c7f-19f5-4362-9280-af39944cee56" basePath="/connection" >
 		<http:request-connection host="localhost" port="8081" />
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration5" doc:name="HTTP Request configuration" doc:id="4b1ba4b5-2dae-40bd-b1d6-5c4746cda635" basePath="/consumer_mapper">
-		<http:request-connection host="localhost" port="8081" />
+		<http:request-connection host="${host}"/>
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration6" doc:name="HTTP Request configuration" doc:id="ccae7f26-f0a5-425c-bd41-57761a79bc97" basePath="/connection" >
 		<http:request-connection host="localhost" port="8081" />
@@ -63,30 +75,33 @@ http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mo
 	<http:request-config name="HTTP_Request_configuration10" doc:name="HTTP Request configuration" doc:id="eaa1b76e-850c-46aa-95c1-e7f47de78770" >
 		<http:request-connection protocol="HTTPS" port="443" />
 	</http:request-config>
-		<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="e436e1e0-af4c-4821-8b76-21295807cb31" >
+	<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="e436e1e0-af4c-4821-8b76-21295807cb31" >
 		<mongo:connection-string-connection connectionString="mongodb+srv://jack:qpqEGoWDGHYWWNTT@poctest.sq81g.mongodb.net/db?retryWrites=true&amp;w=majority" />
 	</mongo:config>
+	<global-property doc:name="Global Property" doc:id="0f9f886e-1e52-4a3b-b3a2-0e5d75b2d380" name="env" value="dev" />
+	<configuration-properties doc:name="Configuration properties" doc:id="973c1c00-57d6-4016-8576-87886d459ada" file="${env}.yaml" />
+	<http:request-config name="no_host_request_config" doc:name="HTTP Request configuration" doc:id="cad42f46-febd-4a44-98f8-0717f3b0fc6c" />
 	<flow name="produce_flow" doc:id="e0eab66f-62e5-4ea8-b108-ebbc2e2d26d4" initialState="started">
 		<http:listener doc:name="Listener" doc:id="47bcf15d-41e6-4145-bf88-95a666e94163" config-ref="HTTP_Listener_config" path="/connection/produce" allowedMethods="GET"/>
 		<mongo:find-one-document doc:name="Find one document" doc:id="882489d3-8814-4384-a794-d82c140c0bd0" config-ref="MongoDB_Config" collectionName="connection">
-			<mongo:find-query ><![CDATA[#[{
+			<mongo:find-query><![CDATA[#[{
 	"name": vars.routing_config."config".producer_connection.name,
 	"type": "producer",
 	"userId": vars.routing_config.userId
 }]]]></mongo:find-query>
 		</mongo:find-one-document>
 		<set-variable value="#[payload]" doc:name="connection_config" doc:id="563d8d13-5001-403e-b7b6-1dc766200b0a" variableName="connection_config"/>
-		<http:request method="POST" doc:name="RequestShopperJWT" doc:id="dd228f3a-d82f-48ae-9959-f5eb3ca16c6d" config-ref="HTTP_Request_configuration" url="#[vars.connection_config.config.tokenUrl]">
+		<http:request method="POST" doc:name="RequestShopperJWT" doc:id="dd228f3a-d82f-48ae-9959-f5eb3ca16c6d" config-ref="no_host_request_config" url="#[vars.connection_config.config.tokenUrl]">
 			<http:body><![CDATA[{
 	"type": "guest"
 }]]></http:body>
 			<http:query-params><![CDATA[#[output application/json
 ---
 {
-	"client_id" : vars.connection_config.config.client_id
+	"client_id" : "6c957560-464f-4a98-ad0f-5e9662527e27"
 }]]]></http:query-params>
 		</http:request>
-		<http:request method="GET" doc:name="OCAPI connector" doc:id="183ab826-0190-4c76-a138-5f3aa16db2c9" config-ref="HTTP_Request_configuration1" url="#[vars.connection_config.config.url]">
+		<http:request method="GET" doc:name="OCAPI connector" doc:id="183ab826-0190-4c76-a138-5f3aa16db2c9" config-ref="no_host_request_config" url="#[vars.connection_config.config.url]">
 			<http:headers><![CDATA[#[{
 	"Authorization": attributes.headers.Authorization
 }]]]></http:headers>
@@ -118,7 +133,7 @@ output application/json
 	"clientSecret": vars.connection_config."config".clientSecret as String
 }]]]></java:args>
 		</java:invoke-static>
-		<http:request method="POST" doc:name="Request" doc:id="8cc90611-183d-4ab5-84a4-8d1350d467eb" config-ref="HTTP_Request_configuration10" url="#[vars.connection_config.config.url]">
+		<http:request method="POST" doc:name="Request" doc:id="8cc90611-183d-4ab5-84a4-8d1350d467eb" config-ref="no_host_request_config" url="#[vars.connection_config.config.url]">
 			<http:body><![CDATA[#[vars.product_data]]]></http:body>
 			<http:headers><![CDATA[#[{
 	"Authorization": "Bearer " ++ payload
@@ -184,6 +199,14 @@ output application/json
 	</flow>
 	<flow name="POST_routing_config" doc:id="a9821d46-fb76-40a2-9ed9-a1b14b39110d" >
 		<http:listener doc:name="/routing/config" doc:id="6023580d-be4b-425c-ab8e-3d96408447d3" config-ref="HTTP_Listener_config" path="/routing/config" allowedMethods="POST"/>
+		<ee:transform doc:name="Transform Message" doc:id="65f52482-7a2a-49d6-b9e7-fbdad2eb608f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload,"application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
 		<set-variable value="#[payload]" doc:name="routing_config" doc:id="dd538a39-39df-41a3-8957-7e89825eb17e" variableName="routing_config" />
 		<mongo:find-one-and-update-document collectionName="routing" doc:name="Find one and update document" doc:id="6879b383-a720-4ac0-8f7f-3643b214fbaa" config-ref="MongoDB_Config" upsert="true">
 			<mongo:find-query ><![CDATA[#[{

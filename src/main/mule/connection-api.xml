@@ -23,13 +23,14 @@ fun getJson(payload) = {
 }
 
 ---
+read(payload,"application/json")
 
-{
-	"userId": payload.userId,
-	"type": payload."type",
-	"name": vars.producerName,
-	"config": payload.config
-}
+//{
+//	"userId": payload.userId,
+//	"type": payload."type",
+//	"name": vars.producerName,
+//	"config": payload.config
+//}
 
 ]]></ee:set-payload>
 			</ee:message>
@@ -75,6 +76,14 @@ output application/json
 	<flow name="POST_connection_config_consumer_consumerName" doc:id="92fdab1b-2ac6-4960-a489-2d11a0dbd118" >
 		<http:listener doc:name="/connection/config/consumer/{consumerName}" doc:id="9ab4421b-b654-4d56-8119-c347e79ddcc8" config-ref="HTTP_Listener_config" path="/connection/config/consumer/{consumerName}" allowedMethods="POST"/>
 		<set-variable value="#[attributes.uriParams.consumerName]" doc:name="consumerName " doc:id="e62d1171-a4f5-4ead-a115-e6f95fe16a9b" variableName="consumerName" />
+		<ee:transform doc:name="Transform Message" doc:id="637d6570-7207-4e27-af92-2d6626f74745" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload,"application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
 		<set-variable value="#[payload]" doc:name="config" doc:id="5d069a3d-179e-4c60-8faf-4dc6bccef34d" variableName="connection_config"/>
 		<java:invoke-static doc:name="Invoke static" doc:id="d104c6b5-162e-44d8-b259-0be7b0099fc3" class="TokenGetter" method="TokenLoader(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
 			<java:args ><![CDATA[#[%dw 2.0
